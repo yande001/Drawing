@@ -1,12 +1,19 @@
 package com.example.darren.drawing
 
 import android.app.Dialog
+import android.content.Intent
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.provider.MediaStore
 import android.view.View
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.get
 
@@ -14,13 +21,48 @@ class MainActivity : AppCompatActivity() {
     private var drawingView: DrawingView? = null
     private var mImageButtonCurrentPaint: ImageButton? = null
 
+    private val openGalleryLauncher: ActivityResultLauncher<Intent> =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()){
+            result ->
+            if(result.resultCode == RESULT_OK && result.data != null){
+                val imageBackground: ImageView = findViewById(R.id.iv_background)
+                imageBackground.setImageURI(result.data?.data)
+            }
+        }
+
+    private val permissionsResultLauncher: ActivityResultLauncher<Array<String>> =
+        registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            permissions.entries.forEach {
+                val permissionName = it.key
+                val isGranted = it.value
+                if (isGranted) {
+                    when (permissionName) {
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE -> {
+                            Toast.makeText(this, "Permission granted now you can read the storage files.", Toast.LENGTH_LONG).show()
+                            val pickIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                            openGalleryLauncher.launch(pickIntent)
+                        }
+                    }
+                } else {
+                    when (permissionName) {
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE -> {
+                            Toast.makeText(this, "Oops you just deny the permission.", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
+            }
+
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         val linearLayoutPaintColor = findViewById<LinearLayout>(R.id.ll_paint_color)
 
-        mImageButtonCurrentPaint = linearLayoutPaintColor[2] as ImageButton
+        mImageButtonCurrentPaint = linearLayoutPaintColor[1] as ImageButton
         mImageButtonCurrentPaint!!.setImageDrawable(
             ContextCompat.getDrawable(this, R.drawable.pallet_selected)
         )
@@ -31,6 +73,33 @@ class MainActivity : AppCompatActivity() {
         val brushBtn: ImageButton = findViewById(R.id.ib_brush)
         brushBtn.setOnClickListener { showBrushSizeChooserDialog() }
 
+        val undoBtn: ImageButton = findViewById(R.id.ib_undo)
+        undoBtn.setOnClickListener {
+            drawingView?.onClickUndo()
+        }
+
+        val redoBtn: ImageButton = findViewById(R.id.ib_redo)
+        redoBtn.setOnClickListener {
+            drawingView?.onClickRedo()
+        }
+
+        val galleryBtn: ImageButton = findViewById(R.id.ib_gallery)
+        galleryBtn.setOnClickListener {
+            requestExternalStoragePermission()
+        }
+
+    }
+
+    private fun requestExternalStoragePermission(){
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            shouldShowRequestPermissionRationale(android.Manifest.permission.CAMERA)){
+            showRationaleDialog("Permission",
+                "This function needs permission.")
+        } else{
+            permissionsResultLauncher.launch(
+                arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+            )
+        }
     }
 
     private fun showBrushSizeChooserDialog(){
@@ -71,5 +140,15 @@ class MainActivity : AppCompatActivity() {
 
             mImageButtonCurrentPaint = view
         }
+    }
+
+    private fun showRationaleDialog(title: String, message: String){
+        val builder: AlertDialog.Builder = AlertDialog.Builder(this)
+        builder.setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("Cancel") { dialogInterface, _ -> dialogInterface.dismiss() }
+
+        builder.create().show()
+
     }
 }
