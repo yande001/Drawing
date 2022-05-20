@@ -29,7 +29,8 @@ import java.io.FileOutputStream
 class MainActivity : AppCompatActivity() {
     private var drawingView: DrawingView? = null
     private var mImageButtonCurrentPaint: ImageButton? = null
-    var customProgressDialog: Dialog? = null
+    private var customProgressDialog: Dialog? = null
+    private var mPathOfLastFile: String? = null
 
     private val openGalleryLauncher: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()){
@@ -107,6 +108,15 @@ class MainActivity : AppCompatActivity() {
                     val flDrawingView: FrameLayout = findViewById(R.id.fl_drawing_view_container)
                     saveBitmapFile(getBitmapFromView(flDrawingView))
                 }
+            }
+        }
+
+        val shareBtn: ImageButton = findViewById(R.id.ib_share)
+        shareBtn.setOnClickListener {
+            if (mPathOfLastFile == null){
+                Toast.makeText(this@MainActivity, "You should save your drawing before sharing it.",Toast.LENGTH_LONG).show()
+            } else{
+                shareImage(mPathOfLastFile!!)
             }
         }
 
@@ -210,7 +220,7 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(this@MainActivity,
                                 "File saved successfully: $result",
                                 Toast.LENGTH_LONG).show()
-                                shareImage(result)
+                                mPathOfLastFile = result
                         } else{
                             Toast.makeText(this@MainActivity,
                                 "Something went wrong while saving the file.",
@@ -254,4 +264,5 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent.createChooser(shareIntent, "Share"))
         }
     }
+
 }
