@@ -32,6 +32,8 @@ class MainActivity : AppCompatActivity() {
     private var customProgressDialog: Dialog? = null
     private var mPathOfLastFile: String? = null
 
+
+
     private val openGalleryLauncher: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()){
             result ->
@@ -54,6 +56,7 @@ class MainActivity : AppCompatActivity() {
                             val pickIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
                             openGalleryLauncher.launch(pickIntent)
                         }
+
                     }
                 } else {
                     when (permissionName) {
@@ -64,6 +67,33 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             }
+
+    private val permissionsResultLauncherForSaving: ActivityResultLauncher<Array<String>> =
+        registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            permissions.entries.forEach {
+                val permissionName = it.key
+                val isGranted = it.value
+                if (isGranted) {
+                    when (permissionName) {
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE -> {
+                            lifecycleScope.launch{
+                                showProgressDialog()
+                                val flDrawingView: FrameLayout = findViewById(R.id.fl_drawing_view_container)
+                                saveBitmapFile(getBitmapFromView(flDrawingView))
+                            }
+                        }
+
+                    }
+                } else {
+                    when (permissionName) {
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE -> {
+                            Toast.makeText(this, "Oops you just deny the permission.", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
+        }
 
 
 
@@ -101,14 +131,7 @@ class MainActivity : AppCompatActivity() {
 
         val saveBtn: ImageButton = findViewById(R.id.ib_save)
         saveBtn.setOnClickListener {
-            //TODO: Fix redesign the permission mechanism
-            if(isReadStorageAllowed()){
-                lifecycleScope.launch{
-                    showProgressDialog()
-                    val flDrawingView: FrameLayout = findViewById(R.id.fl_drawing_view_container)
-                    saveBitmapFile(getBitmapFromView(flDrawingView))
-                }
-            }
+            requestExternalStoragePermissionForSaving()
         }
 
         val shareBtn: ImageButton = findViewById(R.id.ib_share)
@@ -122,9 +145,24 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun requestExternalStoragePermission(){
+    private fun requestExternalStoragePermissionForSaving(){
+        //if user already denied the permission before
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-            shouldShowRequestPermissionRationale(android.Manifest.permission.CAMERA)){
+            shouldShowRequestPermissionRationale(android.Manifest.permission.READ_EXTERNAL_STORAGE)){
+            showRationaleDialog("Permission",
+                "This function needs permission.")
+        } else{
+            permissionsResultLauncherForSaving.launch(
+                arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            )
+        }
+    }
+
+    private fun requestExternalStoragePermission(){
+        //if user already denied the permission before
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            shouldShowRequestPermissionRationale(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)){
             showRationaleDialog("Permission",
                 "This function needs permission.")
         } else{
